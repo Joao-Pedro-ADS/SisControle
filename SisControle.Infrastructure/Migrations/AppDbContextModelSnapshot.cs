@@ -673,7 +673,7 @@ namespace SisControle.Infrastructure.Migrations
                     b.HasOne("SisControle.Domain.Entities.Funcionario", "Funcionario")
                         .WithMany("Vendas")
                         .HasForeignKey("FuncionarioId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Cliente");

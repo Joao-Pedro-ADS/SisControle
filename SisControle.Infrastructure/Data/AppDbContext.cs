@@ -51,6 +51,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Venda>(e =>
         {
             e.Property(v => v.ValorTotal).HasColumnType("decimal(18,2)");
+            e.HasOne(v => v.Funcionario).WithMany(f => f.Vendas).HasForeignKey(v => v.FuncionarioId).OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<ItemVenda>(e =>
