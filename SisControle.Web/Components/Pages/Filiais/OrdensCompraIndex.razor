@@ -1,0 +1,253 @@
+@page "/ordens-compra"
+@rendermode InteractiveServer
+@inject OrdemCompraService OrdemCompraSvc
+@inject FilialService FilialSvc
+@inject FornecedorService FornecedorSvc
+@inject ProdutoService ProdutoSvc
+
+<PageTitle>Ordens de Compra — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Ordens de Compra</h2>
+        <button class="btn btn-primary" @onclick="() => modalAberto = true">+ Nova Ordem</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Filial</label>
+            <select class="form-select" @bind="filialId" @bind:after="CarregarAsync">
+                <option value="0">Selecione...</option>
+                @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th><th>Data</th><th>Fornecedor</th><th>Status</th>
+                    <th>Valor Total</th><th>Recebimento</th><th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in ordens)
+                {
+                    <tr>
+                        <td>@o.Id</td>
+                        <td>@o.DataPedido.ToString("dd/MM/yyyy")</td>
+                        <td>@o.Fornecedor?.Nome</td>
+                        <td>
+                            <span class="badge @BadgeClass(o.Status)">@o.Status</span>
+                        </td>
+                        <td>@o.ValorTotal.ToString("C")</td>
+                        <td>@(o.DataRecebimento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>
+                            @if (o.Status == StatusOrdemCompra.Pendente || o.Status == StatusOrdemCompra.Aprovada)
+                            {
+                                <button class="btn btn-sm btn-success me-1" @onclick="() => ReceberAsync(o.Id)">Receber</button>
+                            }
+                            @if (o.Status == StatusOrdemCompra.Pendente)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => CancelarAsync(o.Id)">Cancelar</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nova Ordem de Compra</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Filial *</label>
+                            <select class="form-select" @bind="novaOrdem.FilialId">
+                                <option value="0">Selecione...</option>
+                                @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fornecedor *</label>
+                            <select class="form-select" @bind="novaOrdem.FornecedorId">
+                                <option value="0">Selecione...</option>
+                                @foreach (var f in fornecedores) { <option value="@f.Id">@f.Nome</option> }
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6>Adicionar Itens</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-5">
+                            <select class="form-select" @bind="addProdutoId">
+                                <option value="0">Produto...</option>
+                                @foreach (var p in produtos) { <option value="@p.Id">@p.Nome</option> }
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <input type="number" min="1" class="form-control" @bind="addQtd" placeholder="Qtd" />
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" step="0.01" class="form-control" @bind="addPreco" placeholder="Preço unit." />
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-primary w-100" @onclick="AdicionarItemOrdem">+</button>
+                        </div>
+                    </div>
+
+                    @if (itensOrdem.Any())
+                    {
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in itensOrdem)
+                                {
+                                    <tr>
+                                        <td>@item.NomeProduto</td>
+                                        <td>@item.Quantidade</td>
+                                        <td>@item.PrecoUnitario.ToString("C")</td>
+                                        <td>@((item.Quantidade * item.PrecoUnitario).ToString("C"))</td>
+                                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => itensOrdem.Remove(item)">X</button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td colspan="3" class="text-end">Total:</td>
+                                    <td colspan="2">@itensOrdem.Sum(i => i.Quantidade * i.PrecoUnitario).ToString("C")</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="FecharModal">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarOrdemAsync">Criar Ordem</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    record ItemOrdemForm(int ProdutoId, string NomeProduto, int Quantidade, decimal PrecoUnitario);
+
+    private List<OrdemCompra> ordens = new();
+    private List<Filial> filiais = new();
+    private List<Fornecedor> fornecedores = new();
+    private List<Produto> produtos = new();
+    private List<ItemOrdemForm> itensOrdem = new();
+    private OrdemCompra novaOrdem = new();
+    private int filialId = 0;
+    private int addProdutoId = 0, addQtd = 1;
+    private decimal addPreco = 0;
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        filiais = (await FilialSvc.ListarAsync()).ToList();
+        fornecedores = (await FornecedorSvc.ListarAsync()).ToList();
+        produtos = (await ProdutoSvc.ListarAsync()).ToList();
+    }
+
+    private async Task CarregarAsync()
+    {
+        if (filialId > 0)
+            ordens = (await OrdemCompraSvc.ListarPorFilialAsync(filialId)).ToList();
+    }
+
+    private void FecharModal()
+    {
+        modalAberto = false;
+        novaOrdem = new OrdemCompra();
+        itensOrdem.Clear();
+        addProdutoId = 0; addQtd = 1; addPreco = 0;
+    }
+
+    private void AdicionarItemOrdem()
+    {
+        if (addProdutoId == 0 || addQtd <= 0 || addPreco <= 0) return;
+        var produto = produtos.FirstOrDefault(p => p.Id == addProdutoId);
+        if (produto == null) return;
+        var existente = itensOrdem.FirstOrDefault(i => i.ProdutoId == addProdutoId);
+        if (existente != null) itensOrdem.Remove(existente);
+        itensOrdem.Add(new ItemOrdemForm(produto.Id, produto.Nome, addQtd, addPreco));
+        addProdutoId = 0; addQtd = 1; addPreco = 0;
+    }
+
+    private async Task SalvarOrdemAsync()
+    {
+        try
+        {
+            novaOrdem.Itens = itensOrdem.Select(i => new ItemOrdemCompra
+            {
+                ProdutoId = i.ProdutoId,
+                Quantidade = i.Quantidade,
+                PrecoUnitario = i.PrecoUnitario
+            }).ToList();
+
+            await OrdemCompraSvc.CriarAsync(novaOrdem);
+            await CarregarAsync();
+            FecharModal();
+            mensagem = "Ordem de compra criada!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task ReceberAsync(int ordemId)
+    {
+        try
+        {
+            await OrdemCompraSvc.ReceberAsync(ordemId);
+            await CarregarAsync();
+            mensagem = "Recebimento registrado e estoque atualizado!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task CancelarAsync(int ordemId)
+    {
+        try
+        {
+            await OrdemCompraSvc.AtualizarStatusAsync(ordemId, StatusOrdemCompra.Cancelada);
+            await CarregarAsync();
+            mensagem = "Ordem cancelada.";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private static string BadgeClass(StatusOrdemCompra status) => status switch
+    {
+        StatusOrdemCompra.Pendente => "bg-warning text-dark",
+        StatusOrdemCompra.Aprovada => "bg-primary",
+        StatusOrdemCompra.Recebida => "bg-success",
+        StatusOrdemCompra.Cancelada => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

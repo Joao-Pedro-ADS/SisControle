@@ -1,0 +1,172 @@
+@page "/produtos"
+@rendermode InteractiveServer
+@inject ProdutoService ProdutoSvc
+@inject CategoriaService CategoriaSvc
+
+<PageTitle>Produtos — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Produtos</h2>
+        <button class="btn btn-primary" @onclick="() => AbrirModal(null)">+ Novo Produto</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="mb-3">
+        <input class="form-control" placeholder="Buscar por nome..." @bind="filtro" @bind:event="oninput" />
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th><th>Código</th><th>Nome</th><th>Categoria</th>
+                    <th>Preço Custo</th><th>Preço Venda</th><th>Estoque Mín.</th><th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in ProdutosFiltrados)
+                {
+                    <tr>
+                        <td>@p.Id</td>
+                        <td>@p.CodigoBarras</td>
+                        <td>@p.Nome</td>
+                        <td>@p.Categoria?.Nome</td>
+                        <td>@p.PrecoCusto.ToString("C")</td>
+                        <td>@p.PrecoVenda.ToString("C")</td>
+                        <td>@p.EstoqueMinimo</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModal(p)">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirAsync(p.Id)">Excluir</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(modelo.Id == 0 ? "Novo Produto" : "Editar Produto")</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nome *</label>
+                        <input class="form-control" @bind="modelo.Nome" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Código de Barras</label>
+                        <input class="form-control" @bind="modelo.CodigoBarras" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Categoria *</label>
+                        <select class="form-select" @bind="modelo.CategoriaId">
+                            <option value="0">Selecione...</option>
+                            @foreach (var c in categorias)
+                            {
+                                <option value="@c.Id">@c.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Preço Custo *</label>
+                            <input type="number" step="0.01" class="form-control" @bind="modelo.PrecoCusto" />
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Preço Venda *</label>
+                            <input type="number" step="0.01" class="form-control" @bind="modelo.PrecoVenda" />
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Estoque Mínimo</label>
+                        <input type="number" class="form-control" @bind="modelo.EstoqueMinimo" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarAsync">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Produto> produtos = new();
+    private List<Categoria> categorias = new();
+    private Produto modelo = new();
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+    private string filtro = string.Empty;
+
+    private IEnumerable<Produto> ProdutosFiltrados =>
+        string.IsNullOrWhiteSpace(filtro)
+            ? produtos
+            : produtos.Where(p => p.Nome.Contains(filtro, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        produtos = (await ProdutoSvc.ListarAsync()).ToList();
+        categorias = (await CategoriaSvc.ListarAsync()).ToList();
+    }
+
+    private void AbrirModal(Produto? p)
+    {
+        modelo = p == null ? new Produto() : new Produto
+        {
+            Id = p.Id, Nome = p.Nome, CodigoBarras = p.CodigoBarras,
+            CategoriaId = p.CategoriaId, PrecoCusto = p.PrecoCusto,
+            PrecoVenda = p.PrecoVenda, EstoqueMinimo = p.EstoqueMinimo
+        };
+        modalAberto = true;
+    }
+
+    private async Task SalvarAsync()
+    {
+        try
+        {
+            if (modelo.Id == 0) await ProdutoSvc.CadastrarAsync(modelo);
+            else await ProdutoSvc.AtualizarAsync(modelo);
+            produtos = (await ProdutoSvc.ListarAsync()).ToList();
+            modalAberto = false;
+            mensagem = "Produto salvo com sucesso!";
+            erro = false;
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await ProdutoSvc.ExcluirAsync(id);
+            produtos = (await ProdutoSvc.ListarAsync()).ToList();
+            mensagem = "Produto removido.";
+            erro = false;
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+}

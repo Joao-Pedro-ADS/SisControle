@@ -1,0 +1,273 @@
+@page "/estoque"
+@rendermode InteractiveServer
+@inject EstoqueService EstoqueSvc
+@inject FilialService FilialSvc
+@inject ProdutoService ProdutoSvc
+
+<PageTitle>Estoque — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <h2 class="mb-3">Controle de Estoque</h2>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label class="form-label">Filial</label>
+            <select class="form-select" @bind="filialSelecionadaId" @bind:after="CarregarEstoqueAsync">
+                <option value="0">Selecione uma filial...</option>
+                @foreach (var f in filiais)
+                {
+                    <option value="@f.Id">@f.Nome</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-8 d-flex align-items-end gap-2">
+            <button class="btn btn-success" @onclick="() => AbrirModalMovimentacao(TipoMovimentacao.Entrada)">+ Entrada</button>
+            <button class="btn btn-warning text-dark" @onclick="() => AbrirModalMovimentacao(TipoMovimentacao.Perda)">Registrar Perda</button>
+            <button class="btn btn-info text-dark" @onclick="() => AbrirModalMovimentacao(TipoMovimentacao.Vencimento)">Baixar Vencido</button>
+            <button class="btn btn-secondary" @onclick="() => modalTransferenciaAberto = true">Transferir</button>
+        </div>
+    </div>
+
+    @if (alertas.Any())
+    {
+        <div class="alert alert-warning">
+            <strong>Alertas de Reposição:</strong> @alertas.Count produto(s) abaixo do estoque mínimo.
+            <a href="#alertas">Ver alertas</a>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Produto</th><th>Categoria</th><th>Qtd. Atual</th><th>Estoque Mín.</th><th>Validade</th><th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in estoqueFilial)
+                {
+                    var abaixoMinimo = e.QuantidadeAtual <= e.Produto.EstoqueMinimo;
+                    var vencido = e.DataValidade.HasValue && e.DataValidade.Value < DateTime.Today;
+                    <tr class="@(vencido ? "table-danger" : abaixoMinimo ? "table-warning" : "")">
+                        <td>@e.Produto.Nome</td>
+                        <td>@e.Produto.Categoria?.Nome</td>
+                        <td>@e.QuantidadeAtual</td>
+                        <td>@e.Produto.EstoqueMinimo</td>
+                        <td>@(e.DataValidade?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>
+                            @if (vencido) { <span class="badge bg-danger">Vencido</span> }
+                            else if (abaixoMinimo) { <span class="badge bg-warning text-dark">Abaixo mínimo</span> }
+                            else { <span class="badge bg-success">OK</span> }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (alertas.Any())
+    {
+        <h5 id="alertas" class="mt-4">Alertas de Reposição</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-warning">
+                    <tr><th>Produto</th><th>Qtd. Atual</th><th>Estoque Mín.</th><th>Data Alerta</th><th>Ação</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in alertas)
+                    {
+                        <tr>
+                            <td>@a.Produto.Nome</td>
+                            <td>@a.QuantidadeAtual</td>
+                            <td>@a.EstoqueMinimo</td>
+                            <td>@a.DataAlerta.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                <button class="btn btn-sm btn-success" @onclick="() => ResolverAlertaAsync(a.Id)">Resolver</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (modalMovimentacaoAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar @tipoMovimentacao</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalMovimentacaoAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Produto *</label>
+                        <select class="form-select" @bind="movProdutoId">
+                            <option value="0">Selecione...</option>
+                            @foreach (var p in produtos)
+                            {
+                                <option value="@p.Id">@p.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Quantidade *</label>
+                        <input type="number" min="1" class="form-control" @bind="movQuantidade" />
+                    </div>
+                    @if (tipoMovimentacao == TipoMovimentacao.Entrada)
+                    {
+                        <div class="mb-2">
+                            <label class="form-label">Data de Validade</label>
+                            <input type="date" class="form-control" @bind="movValidade" />
+                        </div>
+                    }
+                    <div class="mb-2">
+                        <label class="form-label">Observação</label>
+                        <input class="form-control" @bind="movObservacao" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalMovimentacaoAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="RegistrarMovimentacaoAsync">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (modalTransferenciaAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Transferência entre Filiais</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalTransferenciaAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Filial Origem</label>
+                        <select class="form-select" @bind="transOrigem">
+                            <option value="0">Selecione...</option>
+                            @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Filial Destino</label>
+                        <select class="form-select" @bind="transDestino">
+                            <option value="0">Selecione...</option>
+                            @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Produto</label>
+                        <select class="form-select" @bind="transProduto">
+                            <option value="0">Selecione...</option>
+                            @foreach (var p in produtos) { <option value="@p.Id">@p.Nome</option> }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Quantidade</label>
+                        <input type="number" min="1" class="form-control" @bind="transQuantidade" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalTransferenciaAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="TransferirAsync">Transferir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EstoqueFilial> estoqueFilial = new();
+    private List<AlertaReposicao> alertas = new();
+    private List<Filial> filiais = new();
+    private List<Produto> produtos = new();
+    private int filialSelecionadaId = 0;
+    private string? mensagem;
+    private bool erro = false;
+
+    private bool modalMovimentacaoAberto = false;
+    private bool modalTransferenciaAberto = false;
+    private TipoMovimentacao tipoMovimentacao;
+    private int movProdutoId = 0;
+    private int movQuantidade = 1;
+    private DateTime? movValidade;
+    private string movObservacao = string.Empty;
+
+    private int transOrigem = 0, transDestino = 0, transProduto = 0, transQuantidade = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        filiais = (await FilialSvc.ListarAsync()).ToList();
+        produtos = (await ProdutoSvc.ListarAsync()).ToList();
+    }
+
+    private async Task CarregarEstoqueAsync()
+    {
+        if (filialSelecionadaId == 0) return;
+        estoqueFilial = (await EstoqueSvc.ListarPorFilialAsync(filialSelecionadaId)).ToList();
+        alertas = (await EstoqueSvc.ListarAlertasAsync(filialSelecionadaId)).ToList();
+    }
+
+    private void AbrirModalMovimentacao(TipoMovimentacao tipo)
+    {
+        tipoMovimentacao = tipo;
+        movProdutoId = 0;
+        movQuantidade = 1;
+        movValidade = null;
+        movObservacao = string.Empty;
+        modalMovimentacaoAberto = true;
+    }
+
+    private async Task RegistrarMovimentacaoAsync()
+    {
+        try
+        {
+            if (filialSelecionadaId == 0) throw new InvalidOperationException("Selecione uma filial.");
+            if (movProdutoId == 0) throw new InvalidOperationException("Selecione um produto.");
+
+            if (tipoMovimentacao == TipoMovimentacao.Entrada)
+                await EstoqueSvc.RegistrarEntradaAsync(filialSelecionadaId, movProdutoId, movQuantidade, movObservacao);
+            else
+                await EstoqueSvc.RegistrarSaidaAsync(filialSelecionadaId, movProdutoId, movQuantidade, tipoMovimentacao, movObservacao);
+
+            await CarregarEstoqueAsync();
+            modalMovimentacaoAberto = false;
+            mensagem = "Movimentação registrada!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task TransferirAsync()
+    {
+        try
+        {
+            await EstoqueSvc.TransferirAsync(transOrigem, transDestino, transProduto, transQuantidade);
+            await CarregarEstoqueAsync();
+            modalTransferenciaAberto = false;
+            mensagem = "Transferência realizada!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task ResolverAlertaAsync(int alertaId)
+    {
+        await EstoqueSvc.ResolverAlertaAsync(alertaId);
+        alertas = (await EstoqueSvc.ListarAlertasAsync(filialSelecionadaId)).ToList();
+    }
+}

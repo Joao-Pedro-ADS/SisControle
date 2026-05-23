@@ -1,0 +1,136 @@
+@page "/clientes"
+@rendermode InteractiveServer
+@inject ClienteService ClienteSvc
+
+<PageTitle>Clientes — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Clientes</h2>
+        <button class="btn btn-primary" @onclick="() => AbrirModal(null)">+ Novo Cliente</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="mb-3">
+        <input class="form-control" placeholder="Buscar por nome..." @bind="filtro" @bind:event="oninput" />
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Nome</th><th>CPF</th><th>Telefone</th><th>Email</th><th>Ações</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in ClientesFiltrados)
+                {
+                    <tr>
+                        <td>@c.Id</td>
+                        <td>@c.Nome</td>
+                        <td>@c.Cpf</td>
+                        <td>@c.Telefone</td>
+                        <td>@c.Email</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModal(c)">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirAsync(c.Id)">Excluir</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(modelo.Id == 0 ? "Novo Cliente" : "Editar Cliente")</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nome *</label>
+                        <input class="form-control" @bind="modelo.Nome" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">CPF</label>
+                        <input class="form-control" @bind="modelo.Cpf" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Telefone</label>
+                        <input class="form-control" @bind="modelo.Telefone" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" @bind="modelo.Email" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarAsync">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Cliente> clientes = new();
+    private Cliente modelo = new();
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+    private string filtro = string.Empty;
+
+    private IEnumerable<Cliente> ClientesFiltrados =>
+        string.IsNullOrWhiteSpace(filtro)
+            ? clientes
+            : clientes.Where(c => c.Nome.Contains(filtro, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+        => clientes = (await ClienteSvc.ListarAsync()).ToList();
+
+    private void AbrirModal(Cliente? c)
+    {
+        modelo = c == null ? new Cliente() : new Cliente
+        {
+            Id = c.Id, Nome = c.Nome, Cpf = c.Cpf, Telefone = c.Telefone, Email = c.Email
+        };
+        modalAberto = true;
+    }
+
+    private async Task SalvarAsync()
+    {
+        try
+        {
+            if (modelo.Id == 0) await ClienteSvc.CadastrarAsync(modelo);
+            else await ClienteSvc.AtualizarAsync(modelo);
+            clientes = (await ClienteSvc.ListarAsync()).ToList();
+            modalAberto = false;
+            mensagem = "Cliente salvo!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await ClienteSvc.ExcluirAsync(id);
+            clientes = (await ClienteSvc.ListarAsync()).ToList();
+            mensagem = "Cliente removido.";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+}

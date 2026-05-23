@@ -1,0 +1,162 @@
+@page "/despesas"
+@rendermode InteractiveServer
+@inject DespesaService DespesaSvc
+@inject FilialService FilialSvc
+
+<PageTitle>Despesas Operacionais — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Despesas Operacionais</h2>
+        <button class="btn btn-primary" @onclick="() => AbrirModal()">+ Nova Despesa</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Filial</label>
+            <select class="form-select" @bind="filialId" @bind:after="CarregarAsync">
+                <option value="0">Selecione...</option>
+                @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+            </select>
+        </div>
+    </div>
+
+    @if (filialId > 0)
+    {
+        <div class="mb-2">
+            <strong>Total de despesas: </strong>
+            <span class="text-danger fw-bold">@despesas.Sum(d => d.Valor).ToString("C")</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Tipo</th><th>Descrição</th><th>Valor</th><th>Competência</th><th>Data Lançamento</th><th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in despesas)
+                    {
+                        <tr>
+                            <td>@d.Tipo</td>
+                            <td>@d.Descricao</td>
+                            <td class="text-danger">@d.Valor.ToString("C")</td>
+                            <td>@d.Competencia</td>
+                            <td>@d.DataLancamento.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirAsync(d.Id)">Excluir</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nova Despesa</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Filial *</label>
+                        <select class="form-select" @bind="modelo.FilialId">
+                            <option value="0">Selecione...</option>
+                            @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Tipo *</label>
+                        <select class="form-select" @bind="modelo.Tipo">
+                            @foreach (var t in Enum.GetValues<TipoDespesa>())
+                            {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Descrição *</label>
+                        <input class="form-control" @bind="modelo.Descricao" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Valor *</label>
+                        <input type="number" step="0.01" class="form-control" @bind="modelo.Valor" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Competência (ex: 05/2024)</label>
+                        <input class="form-control" @bind="modelo.Competencia" placeholder="MM/AAAA" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarAsync">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<DespesaOperacional> despesas = new();
+    private List<Filial> filiais = new();
+    private DespesaOperacional modelo = new();
+    private int filialId = 0;
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+
+    protected override async Task OnInitializedAsync()
+        => filiais = (await FilialSvc.ListarAsync()).ToList();
+
+    private async Task CarregarAsync()
+    {
+        if (filialId > 0)
+            despesas = (await DespesaSvc.ListarPorFilialAsync(filialId)).ToList();
+    }
+
+    private void AbrirModal()
+    {
+        modelo = new DespesaOperacional { FilialId = filialId };
+        modalAberto = true;
+    }
+
+    private async Task SalvarAsync()
+    {
+        try
+        {
+            await DespesaSvc.RegistrarAsync(modelo);
+            await CarregarAsync();
+            modalAberto = false;
+            mensagem = "Despesa registrada!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await DespesaSvc.ExcluirAsync(id);
+            await CarregarAsync();
+            mensagem = "Despesa removida.";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+}

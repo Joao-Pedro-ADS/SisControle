@@ -1,0 +1,97 @@
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="">SisControle</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-speedometer2" aria-hidden="true"></span> Dashboard
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3 mt-2">
+            <small class="text-uppercase text-muted px-1" style="font-size:.65rem;letter-spacing:.05em">Cadastros Base</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="filiais">
+                <span class="bi bi-building" aria-hidden="true"></span> Filiais
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="categorias">
+                <span class="bi bi-tags" aria-hidden="true"></span> Categorias
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="produtos">
+                <span class="bi bi-box-seam" aria-hidden="true"></span> Produtos
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="fornecedores">
+                <span class="bi bi-truck" aria-hidden="true"></span> Fornecedores
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="funcionarios">
+                <span class="bi bi-people" aria-hidden="true"></span> Funcionários
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="clientes">
+                <span class="bi bi-person-badge" aria-hidden="true"></span> Clientes
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3 mt-2">
+            <small class="text-uppercase text-muted px-1" style="font-size:.65rem;letter-spacing:.05em">Operacional</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="estoque">
+                <span class="bi bi-archive" aria-hidden="true"></span> Estoque
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="ordens-compra">
+                <span class="bi bi-cart-check" aria-hidden="true"></span> Ordens de Compra
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="vendas">
+                <span class="bi bi-cart3" aria-hidden="true"></span> Vendas
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="despesas">
+                <span class="bi bi-cash-stack" aria-hidden="true"></span> Despesas
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3 mt-2">
+            <small class="text-uppercase text-muted px-1" style="font-size:.65rem;letter-spacing:.05em">Análise</small>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="relatorios">
+                <span class="bi bi-bar-chart-line" aria-hidden="true"></span> Relatórios
+            </NavLink>
+        </div>
+
+    </nav>
+</div>

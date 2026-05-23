@@ -1,0 +1,141 @@
+@page "/fornecedores"
+@rendermode InteractiveServer
+@inject FornecedorService FornecedorSvc
+
+<PageTitle>Fornecedores — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Fornecedores</h2>
+        <button class="btn btn-primary" @onclick="() => AbrirModal(null)">+ Novo Fornecedor</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th><th>Nome</th><th>CNPJ</th><th>Telefone</th><th>Email</th><th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in fornecedores)
+                {
+                    <tr>
+                        <td>@f.Id</td>
+                        <td>@f.Nome</td>
+                        <td>@f.Cnpj</td>
+                        <td>@f.Telefone</td>
+                        <td>@f.Email</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModal(f)">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirAsync(f.Id)">Excluir</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(modelo.Id == 0 ? "Novo Fornecedor" : "Editar Fornecedor")</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nome *</label>
+                        <input class="form-control" @bind="modelo.Nome" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">CNPJ *</label>
+                        <input class="form-control" @bind="modelo.Cnpj" placeholder="00.000.000/0001-00" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Telefone</label>
+                        <input class="form-control" @bind="modelo.Telefone" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" @bind="modelo.Email" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Endereço</label>
+                        <input class="form-control" @bind="modelo.Endereco" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarAsync">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Fornecedor> fornecedores = new();
+    private Fornecedor modelo = new();
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+
+    protected override async Task OnInitializedAsync()
+        => fornecedores = (await FornecedorSvc.ListarAsync()).ToList();
+
+    private void AbrirModal(Fornecedor? f)
+    {
+        modelo = f == null ? new Fornecedor() : new Fornecedor
+        {
+            Id = f.Id, Nome = f.Nome, Cnpj = f.Cnpj,
+            Telefone = f.Telefone, Email = f.Email, Endereco = f.Endereco
+        };
+        modalAberto = true;
+    }
+
+    private async Task SalvarAsync()
+    {
+        try
+        {
+            if (modelo.Id == 0) await FornecedorSvc.CadastrarAsync(modelo);
+            else await FornecedorSvc.AtualizarAsync(modelo);
+            fornecedores = (await FornecedorSvc.ListarAsync()).ToList();
+            modalAberto = false;
+            mensagem = "Fornecedor salvo!";
+            erro = false;
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await FornecedorSvc.ExcluirAsync(id);
+            fornecedores = (await FornecedorSvc.ListarAsync()).ToList();
+            mensagem = "Fornecedor removido.";
+            erro = false;
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+}

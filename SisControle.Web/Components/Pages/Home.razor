@@ -1,0 +1,148 @@
+@page "/"
+@rendermode InteractiveServer
+@inject RelatorioService RelatorioSvc
+
+<PageTitle>Dashboard — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <h2 class="mb-4">Dashboard da Rede</h2>
+
+    @if (carregando)
+    {
+        <div class="d-flex align-items-center gap-2">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            <span>Carregando dados...</span>
+        </div>
+    }
+    else if (erro != null)
+    {
+        <div class="alert alert-danger">@erro</div>
+    }
+    else
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card text-bg-primary">
+                    <div class="card-body">
+                        <h6 class="card-title">Faturamento Total</h6>
+                        <h3>@totalFaturado.ToString("C")</h3>
+                        <small>Período selecionado</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-success">
+                    <div class="card-body">
+                        <h6 class="card-title">Margem Bruta</h6>
+                        <h3>@margemBruta.ToString("C")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-info">
+                    <div class="card-body">
+                        <h6 class="card-title">Total de Vendas</h6>
+                        <h3>@totalVendas</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-bg-warning">
+                    <div class="card-body">
+                        <h6 class="card-title">Alertas de Reposição</h6>
+                        <h3>@totalAlertas</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label">De</label>
+                <input type="date" class="form-control" @bind="inicio" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Até</label>
+                <input type="date" class="form-control" @bind="fim" />
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100" @onclick="CarregarAsync">Atualizar</button>
+            </div>
+        </div>
+
+        <h5 class="mt-4">Desempenho por Filial</h5>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Filial</th>
+                        <th>Estado</th>
+                        <th>Faturado</th>
+                        <th>Despesas</th>
+                        <th>Margem Bruta</th>
+                        <th>Vendas</th>
+                        <th>Alertas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in relatorio)
+                    {
+                        <tr>
+                            <td>@f.NomeFilial</td>
+                            <td>@f.Estado</td>
+                            <td>@f.TotalFaturado.ToString("C")</td>
+                            <td>@f.TotalDespesas.ToString("C")</td>
+                            <td class="@(f.MargemBruta >= 0 ? "text-success" : "text-danger") fw-bold">
+                                @f.MargemBruta.ToString("C")
+                            </td>
+                            <td>@f.TotalVendas</td>
+                            <td>
+                                @if (f.ProdutosComAlerta > 0)
+                                {
+                                    <span class="badge bg-warning text-dark">@f.ProdutosComAlerta</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">OK</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<RelatorioFilialDto> relatorio = new();
+    private DateTime inicio = DateTime.Today.AddDays(-30);
+    private DateTime fim = DateTime.Today;
+    private bool carregando = true;
+    private string? erro;
+
+    private decimal totalFaturado => relatorio.Sum(r => r.TotalFaturado);
+    private decimal margemBruta => relatorio.Sum(r => r.MargemBruta);
+    private int totalVendas => relatorio.Sum(r => r.TotalVendas);
+    private int totalAlertas => relatorio.Sum(r => r.ProdutosComAlerta);
+
+    protected override async Task OnInitializedAsync() => await CarregarAsync();
+
+    private async Task CarregarAsync()
+    {
+        carregando = true;
+        erro = null;
+        try
+        {
+            relatorio = (await RelatorioSvc.GerarRelatorioRedeAsync(inicio, fim.AddDays(1))).ToList();
+        }
+        catch (Exception ex)
+        {
+            erro = $"Erro ao carregar dados: {ex.Message}";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}

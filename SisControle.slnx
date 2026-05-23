@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SisControle.Application/SisControle.Application.csproj" />
+  <Project Path="SisControle.Domain/SisControle.Domain.csproj" />
+  <Project Path="SisControle.Infrastructure/SisControle.Infrastructure.csproj" />
+  <Project Path="SisControle.Web/SisControle.Web.csproj" />
+</Solution>

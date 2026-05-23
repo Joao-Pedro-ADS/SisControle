@@ -1,0 +1,175 @@
+@page "/vendas/nova"
+@rendermode InteractiveServer
+@inject VendaService VendaSvc
+@inject FilialService FilialSvc
+@inject ProdutoService ProdutoSvc
+@inject FuncionarioService FuncionarioSvc
+@inject ClienteService ClienteSvc
+@inject NavigationManager Nav
+
+<PageTitle>Nova Venda — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <h2 class="mb-4">Registrar Venda</h2>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success")">@mensagem</div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label class="form-label">Filial *</label>
+            <select class="form-select" @bind="filialId" @bind:after="CarregarFuncionariosAsync">
+                <option value="0">Selecione...</option>
+                @foreach (var f in filiais) { <option value="@f.Id">@f.Nome</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Funcionário *</label>
+            <select class="form-select" @bind="funcionarioId">
+                <option value="0">Selecione...</option>
+                @foreach (var f in funcionarios) { <option value="@f.Id">@f.Nome</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Cliente (opcional)</label>
+            <select class="form-select" @bind="clienteId">
+                <option value="0">Consumidor final</option>
+                @foreach (var c in clientes) { <option value="@c.Id">@c.Nome</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Forma de Pagamento *</label>
+            <select class="form-select" @bind="formaPagamento">
+                <option value="">Selecione...</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Cartão Débito">Cartão Débito</option>
+                <option value="Cartão Crédito">Cartão Crédito</option>
+                <option value="Pix">Pix</option>
+            </select>
+        </div>
+    </div>
+
+    <h5>Itens da Venda</h5>
+    <div class="row g-2 mb-3">
+        <div class="col-md-5">
+            <select class="form-select" @bind="addProdutoId">
+                <option value="0">Selecione produto...</option>
+                @foreach (var p in produtos) { <option value="@p.Id">@p.Nome (@p.PrecoVenda.ToString("C"))</option> }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <input type="number" min="1" class="form-control" @bind="addQuantidade" placeholder="Qtd" />
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-success w-100" @onclick="AdicionarItem">Adicionar</button>
+        </div>
+    </div>
+
+    @if (itens.Any())
+    {
+        <table class="table table-bordered table-sm mb-4">
+            <thead class="table-secondary">
+                <tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var item in itens)
+                {
+                    <tr>
+                        <td>@item.NomeProduto</td>
+                        <td>@item.Quantidade</td>
+                        <td>@item.PrecoUnitario.ToString("C")</td>
+                        <td>@((item.Quantidade * item.PrecoUnitario).ToString("C"))</td>
+                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => itens.Remove(item)">X</button></td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold">
+                    <td colspan="3" class="text-end">Total:</td>
+                    <td colspan="2" class="text-success fs-5">@itens.Sum(i => i.Quantidade * i.PrecoUnitario).ToString("C")</td>
+                </tr>
+            </tfoot>
+        </table>
+    }
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary" @onclick="ConfirmarVendaAsync" disabled="@(!itens.Any())">Confirmar Venda</button>
+        <a href="/vendas" class="btn btn-secondary">Cancelar</a>
+    </div>
+</div>
+
+@code {
+    record ItemCarrinho(int ProdutoId, string NomeProduto, int Quantidade, decimal PrecoUnitario);
+
+    private List<Filial> filiais = new();
+    private List<Funcionario> funcionarios = new();
+    private List<Cliente> clientes = new();
+    private List<Produto> produtos = new();
+    private List<ItemCarrinho> itens = new();
+
+    private int filialId, funcionarioId, clienteId, addProdutoId;
+    private int addQuantidade = 1;
+    private string formaPagamento = string.Empty;
+    private string? mensagem;
+    private bool erro = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        filiais = (await FilialSvc.ListarAsync()).ToList();
+        clientes = (await ClienteSvc.ListarAsync()).ToList();
+        produtos = (await ProdutoSvc.ListarAsync()).ToList();
+    }
+
+    private async Task CarregarFuncionariosAsync()
+    {
+        if (filialId > 0)
+            funcionarios = (await FuncionarioSvc.ListarPorFilialAsync(filialId)).ToList();
+    }
+
+    private void AdicionarItem()
+    {
+        if (addProdutoId == 0 || addQuantidade <= 0) return;
+        var produto = produtos.FirstOrDefault(p => p.Id == addProdutoId);
+        if (produto == null) return;
+
+        var existente = itens.FirstOrDefault(i => i.ProdutoId == addProdutoId);
+        if (existente != null) itens.Remove(existente);
+        itens.Add(new ItemCarrinho(produto.Id, produto.Nome, addQuantidade, produto.PrecoVenda));
+        addProdutoId = 0;
+        addQuantidade = 1;
+    }
+
+    private async Task ConfirmarVendaAsync()
+    {
+        try
+        {
+            if (filialId == 0) throw new InvalidOperationException("Selecione a filial.");
+            if (funcionarioId == 0) throw new InvalidOperationException("Selecione o funcionário.");
+            if (string.IsNullOrWhiteSpace(formaPagamento)) throw new InvalidOperationException("Selecione a forma de pagamento.");
+
+            var venda = new Venda
+            {
+                FilialId = filialId,
+                FuncionarioId = funcionarioId,
+                ClienteId = clienteId == 0 ? null : clienteId,
+                FormaPagamento = formaPagamento,
+                Itens = itens.Select(i => new ItemVenda
+                {
+                    ProdutoId = i.ProdutoId,
+                    Quantidade = i.Quantidade,
+                    PrecoUnitario = i.PrecoUnitario
+                }).ToList()
+            };
+
+            await VendaSvc.RegistrarVendaAsync(venda);
+            Nav.NavigateTo("/vendas");
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+}

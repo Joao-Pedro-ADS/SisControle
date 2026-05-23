@@ -1,0 +1,113 @@
+@page "/categorias"
+@rendermode InteractiveServer
+@inject CategoriaService CategoriaSvc
+
+<PageTitle>Categorias — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Categorias de Produto</h2>
+        <button class="btn btn-primary" @onclick="() => AbrirModal(null)">+ Nova Categoria</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Nome</th><th>Descrição</th><th>Ações</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in categorias)
+                {
+                    <tr>
+                        <td>@c.Id</td>
+                        <td>@c.Nome</td>
+                        <td>@c.Descricao</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModal(c)">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirAsync(c.Id)">Excluir</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(modelo.Id == 0 ? "Nova Categoria" : "Editar Categoria")</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nome *</label>
+                        <input class="form-control" @bind="modelo.Nome" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Descrição</label>
+                        <textarea class="form-control" @bind="modelo.Descricao" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarAsync">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Categoria> categorias = new();
+    private Categoria modelo = new();
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+
+    protected override async Task OnInitializedAsync()
+        => categorias = (await CategoriaSvc.ListarAsync()).ToList();
+
+    private void AbrirModal(Categoria? c)
+    {
+        modelo = c == null ? new Categoria() : new Categoria { Id = c.Id, Nome = c.Nome, Descricao = c.Descricao };
+        modalAberto = true;
+    }
+
+    private async Task SalvarAsync()
+    {
+        try
+        {
+            if (modelo.Id == 0) await CategoriaSvc.CadastrarAsync(modelo);
+            else await CategoriaSvc.AtualizarAsync(modelo);
+            categorias = (await CategoriaSvc.ListarAsync()).ToList();
+            modalAberto = false;
+            mensagem = "Categoria salva!";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await CategoriaSvc.ExcluirAsync(id);
+            categorias = (await CategoriaSvc.ListarAsync()).ToList();
+            mensagem = "Categoria removida.";
+            erro = false;
+        }
+        catch (Exception ex) { mensagem = ex.Message; erro = true; }
+    }
+}

@@ -1,0 +1,175 @@
+@page "/funcionarios"
+@rendermode InteractiveServer
+@inject FuncionarioService FuncionarioSvc
+@inject FilialService FilialSvc
+
+<PageTitle>Funcionários — SisControle</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Funcionários</h2>
+        <button class="btn btn-primary" @onclick="() => AbrirModal(null)">+ Novo Funcionário</button>
+    </div>
+
+    @if (mensagem != null)
+    {
+        <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible">
+            @mensagem
+            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th><th>Nome</th><th>CPF</th><th>Cargo</th><th>Filial</th><th>Status</th><th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var f in funcionarios)
+                {
+                    <tr>
+                        <td>@f.Id</td>
+                        <td>@f.Nome</td>
+                        <td>@f.Cpf</td>
+                        <td>@f.Cargo</td>
+                        <td>@f.Filial?.Nome</td>
+                        <td>
+                            <span class="badge @(f.Status == StatusFuncionario.Ativo ? "bg-success" : f.Status == StatusFuncionario.Afastado ? "bg-warning text-dark" : "bg-secondary")">
+                                @f.Status
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => AbrirModal(f)">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ExcluirAsync(f.Id)">Excluir</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (modalAberto)
+{
+    <div class="modal show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(modelo.Id == 0 ? "Novo Funcionário" : "Editar Funcionário")</h5>
+                    <button type="button" class="btn-close" @onclick="() => modalAberto = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label">Nome *</label>
+                        <input class="form-control" @bind="modelo.Nome" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">CPF *</label>
+                        <input class="form-control" @bind="modelo.Cpf" placeholder="000.000.000-00" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Cargo</label>
+                        <input class="form-control" @bind="modelo.Cargo" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Filial *</label>
+                        <select class="form-select" @bind="modelo.FilialId">
+                            <option value="0">Selecione...</option>
+                            @foreach (var f in filiais)
+                            {
+                                <option value="@f.Id">@f.Nome</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Telefone</label>
+                        <input class="form-control" @bind="modelo.Telefone" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" @bind="modelo.Email" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" @bind="modelo.Status">
+                            @foreach (var s in Enum.GetValues<StatusFuncionario>())
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Data Admissão</label>
+                        <input type="date" class="form-control" @bind="modelo.DataAdmissao" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => modalAberto = false">Cancelar</button>
+                    <button class="btn btn-primary" @onclick="SalvarAsync">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Funcionario> funcionarios = new();
+    private List<Filial> filiais = new();
+    private Funcionario modelo = new();
+    private bool modalAberto = false;
+    private string? mensagem;
+    private bool erro = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        funcionarios = (await FuncionarioSvc.ListarAsync()).ToList();
+        filiais = (await FilialSvc.ListarAsync()).ToList();
+    }
+
+    private void AbrirModal(Funcionario? f)
+    {
+        modelo = f == null ? new Funcionario { DataAdmissao = DateTime.Today } : new Funcionario
+        {
+            Id = f.Id, Nome = f.Nome, Cpf = f.Cpf, Cargo = f.Cargo,
+            FilialId = f.FilialId, Telefone = f.Telefone, Email = f.Email,
+            Status = f.Status, DataAdmissao = f.DataAdmissao
+        };
+        modalAberto = true;
+    }
+
+    private async Task SalvarAsync()
+    {
+        try
+        {
+            if (modelo.Id == 0) await FuncionarioSvc.CadastrarAsync(modelo);
+            else await FuncionarioSvc.AtualizarAsync(modelo);
+            funcionarios = (await FuncionarioSvc.ListarAsync()).ToList();
+            modalAberto = false;
+            mensagem = "Funcionário salvo!";
+            erro = false;
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+
+    private async Task ExcluirAsync(int id)
+    {
+        try
+        {
+            await FuncionarioSvc.ExcluirAsync(id);
+            funcionarios = (await FuncionarioSvc.ListarAsync()).ToList();
+            mensagem = "Funcionário removido.";
+            erro = false;
+        }
+        catch (Exception ex)
+        {
+            mensagem = ex.Message;
+            erro = true;
+        }
+    }
+}
