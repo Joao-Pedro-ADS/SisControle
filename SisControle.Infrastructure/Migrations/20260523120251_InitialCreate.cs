@@ -306,7 +306,7 @@ namespace SisControle.Infrastructure.Migrations
                         column: x => x.FuncionarioId,
                         principalTable: "Funcionarios",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.NoAction);
                 });
 
             migrationBuilder.CreateTable(
