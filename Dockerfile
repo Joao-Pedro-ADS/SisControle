@@ -8,7 +8,7 @@ COPY SisControle.Web/SisControle.Web.csproj SisControle.Web/
 RUN dotnet restore SisControle.Web/SisControle.Web.csproj
 
 COPY . .
-RUN dotnet publish SisControle.Web/SisControle.Web.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish SisControle.Web/SisControle.Web.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
