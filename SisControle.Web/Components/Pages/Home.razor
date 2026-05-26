@@ -1,105 +1,289 @@
 @page "/"
 @rendermode InteractiveServer
 @inject RelatorioService RelatorioSvc
+@using MudBlazor.Charts
 
 <PageTitle>Dashboard — SisControle</PageTitle>
 
-<div class="container-fluid py-3">
-    <h2 class="mb-4">Dashboard da Rede</h2>
+<SectionContent SectionName="page-title">Dashboard da Rede</SectionContent>
 
-    @if (carregando)
-    {
-        <div class="d-flex align-items-center gap-2">
-            <div class="spinner-border spinner-border-sm text-primary"></div>
-            <span>Carregando dados...</span>
+@if (carregando)
+{
+    <div class="d-flex align-items-center gap-2 py-4">
+        <div class="spinner-border spinner-border-sm"></div>
+        <span class="text-muted">Carregando dados...</span>
+    </div>
+}
+else if (erro != null)
+{
+    <div class="alert alert-danger">@erro</div>
+}
+else
+{
+    <!-- ── KPI Cards ─────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+
+        <!-- Faturamento / Entradas -->
+        <div class="col-6 col-md-3">
+            <div class="sc-kpi-card">
+                <div class="sc-kpi-accent" style="background:#0071e3"></div>
+                <div class="sc-kpi-content">
+                    <div class="sc-kpi-header">
+                        <div class="sc-kpi-icon-wrap" style="background:#e8f0fd">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <span class="sc-kpi-label">Entradas</span>
+                    </div>
+                    <div class="sc-kpi-value">@totalFaturado.ToString("C")</div>
+                    <div class="sc-kpi-sub">@relatorio.Count filial(is) ativa(s)</div>
+                </div>
+            </div>
         </div>
-    }
-    else if (erro != null)
-    {
-        <div class="alert alert-danger">@erro</div>
-    }
-    else
+
+        <!-- Despesas / Saídas -->
+        <div class="col-6 col-md-3">
+            <div class="sc-kpi-card">
+                <div class="sc-kpi-accent" style="background:#ff3b30"></div>
+                <div class="sc-kpi-content">
+                    <div class="sc-kpi-header">
+                        <div class="sc-kpi-icon-wrap" style="background:#fff0ef">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff3b30" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </div>
+                        <span class="sc-kpi-label">Saídas</span>
+                    </div>
+                    <div class="sc-kpi-value" style="color:#ff3b30">@totalDespesas.ToString("C")</div>
+                    <div class="sc-kpi-sub">
+                        @if (totalFaturado > 0)
+                        { <span>@((totalDespesas / totalFaturado * 100m).ToString("F1"))% do faturamento</span> }
+                        else { <span>sem faturamento no período</span> }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Margem Bruta / Fluxo de Caixa -->
+        <div class="col-6 col-md-3">
+            <div class="sc-kpi-card">
+                <div class="sc-kpi-accent" style="background:@(margemBruta >= 0 ? "#2e7d32" : "#ff3b30")"></div>
+                <div class="sc-kpi-content">
+                    <div class="sc-kpi-header">
+                        <div class="sc-kpi-icon-wrap" style="background:@(margemBruta >= 0 ? "#e8f5e9" : "#fff0ef")">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="@(margemBruta >= 0 ? "#2e7d32" : "#ff3b30")" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                @if (margemBruta >= 0)
+                                {
+                                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+                                }
+                                else
+                                {
+                                    <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>
+                                }
+                            </svg>
+                        </div>
+                        <span class="sc-kpi-label">Margem Bruta</span>
+                    </div>
+                    <div class="sc-kpi-value" style="color:@(margemBruta >= 0 ? "#2e7d32" : "#ff3b30")">@margemBruta.ToString("C")</div>
+                    <div class="sc-kpi-sub">
+                        @if (totalFaturado > 0)
+                        { <span>@((margemBruta / totalFaturado * 100m).ToString("F1"))% de margem</span> }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertas de Estoque -->
+        <div class="col-6 col-md-3">
+            <div class="sc-kpi-card">
+                <div class="sc-kpi-accent" style="background:@(totalAlertas > 0 ? "#e65100" : "#2e7d32")"></div>
+                <div class="sc-kpi-content">
+                    <div class="sc-kpi-header">
+                        <div class="sc-kpi-icon-wrap" style="background:@(totalAlertas > 0 ? "#fff8e1" : "#e8f5e9")">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="@(totalAlertas > 0 ? "#e65100" : "#2e7d32")" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <span class="sc-kpi-label">Alertas</span>
+                    </div>
+                    <div class="sc-kpi-value" style="color:@(totalAlertas > 0 ? "#e65100" : "#2e7d32")">@totalAlertas</div>
+                    <div class="sc-kpi-sub">
+                        @(totalAlertas > 0 ? "produto(s) abaixo do mínimo" : "estoque normalizado")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Filtro de Período ──────────────────────────────────── -->
+    <div class="sc-filter-bar mb-4">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6e6e73" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div class="d-flex align-items-center gap-2">
+                <label class="sc-filter-label">De</label>
+                <input type="date" class="form-control sc-filter-input" @bind="inicio" />
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="sc-filter-label">Até</label>
+                <input type="date" class="form-control sc-filter-input" @bind="fim" />
+            </div>
+            <button class="btn btn-primary" @onclick="CarregarAsync">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.37"/></svg>
+                Atualizar
+            </button>
+            <span class="sc-filter-period ms-auto">
+                @inicio.ToString("dd/MM/yyyy") → @fim.ToString("dd/MM/yyyy")
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Charts ─────────────────────────────────────────────── -->
+    @if (relatorio.Any())
     {
         <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card text-bg-primary">
-                    <div class="card-body">
-                        <h6 class="card-title">Faturamento Total</h6>
-                        <h3>@totalFaturado.ToString("C")</h3>
-                        <small>Período selecionado</small>
+
+            <!-- Entradas vs Saídas por Filial (Bar) -->
+            <div class="col-lg-8">
+                <div class="sc-chart-card sc-table-card">
+                    <div class="sc-chart-header">
+                        <div>
+                            <div class="sc-chart-title">Entradas vs Saídas por Filial</div>
+                            <div class="sc-chart-subtitle">Comparativo de faturamento e despesas no período</div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="sc-legend-item">
+                                <span class="sc-legend-dot" style="background:#0071e3"></span>
+                                <span>Faturado</span>
+                            </div>
+                            <div class="sc-legend-item">
+                                <span class="sc-legend-dot" style="background:#ff3b30"></span>
+                                <span>Despesas</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sc-chart-body">
+                        <MudChart T="double"
+                                  ChartType="ChartType.Bar"
+                                  ChartSeries="@barSeries"
+                                  ChartLabels="@xLabels"
+                                  ChartOptions="@barOptions"
+                                  Width="100%"
+                                  Height="268px" />
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-bg-success">
-                    <div class="card-body">
-                        <h6 class="card-title">Margem Bruta</h6>
-                        <h3>@margemBruta.ToString("C")</h3>
+
+            <!-- Participação por Filial (Donut) -->
+            <div class="col-lg-4">
+                <div class="sc-chart-card sc-table-card">
+                    <div class="sc-chart-header">
+                        <div>
+                            <div class="sc-chart-title">Participação por Filial</div>
+                            <div class="sc-chart-subtitle">% do faturamento total da rede</div>
+                        </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-bg-info">
-                    <div class="card-body">
-                        <h6 class="card-title">Total de Vendas</h6>
-                        <h3>@totalVendas</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-bg-warning">
-                    <div class="card-body">
-                        <h6 class="card-title">Alertas de Reposição</h6>
-                        <h3>@totalAlertas</h3>
+                    <div class="sc-chart-body sc-donut-wrap">
+                        <MudChart T="double"
+                                  ChartType="ChartType.Donut"
+                                  ChartSeries="@donutSeries"
+                                  ChartLabels="@donutLabels"
+                                  ChartOptions="@donutOptions"
+                                  Width="190px"
+                                  Height="190px">
+                            <CustomGraphics>
+                                <text x="50%" y="43%" dominant-baseline="middle" text-anchor="middle"
+                                      fill="#6e6e73" font-family="Inter, -apple-system, sans-serif" font-size="3.8">
+                                    Rede
+                                </text>
+                                <text x="50%" y="57%" dominant-baseline="middle" text-anchor="middle"
+                                      fill="#1d1d1f" font-family="Inter, -apple-system, sans-serif" font-size="5.5" font-weight="700">
+                                    @relatorio.Count fil.
+                                </text>
+                            </CustomGraphics>
+                        </MudChart>
+
+                        <!-- Legenda customizada -->
+                        <div class="sc-donut-legend">
+                            @for (int i = 0; i < relatorio.Count; i++)
+                            {
+                                var f   = relatorio[i];
+                                var cor = _palette[i % _palette.Length];
+                                var pct = totalFaturado > 0 ? f.TotalFaturado / totalFaturado * 100m : 0m;
+                                <div class="sc-donut-legend-item">
+                                    <span class="sc-legend-dot" style="background:@cor; width:9px; height:9px; flex-shrink:0"></span>
+                                    <span class="sc-donut-legend-name">@f.NomeFilial</span>
+                                    <span class="sc-donut-legend-val">@f.TotalFaturado.ToString("C")</span>
+                                    <span class="sc-donut-legend-pct">@pct.ToString("F0")%</span>
+                                </div>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="row g-3 mb-3">
-            <div class="col-md-4">
-                <label class="form-label">De</label>
-                <input type="date" class="form-control" @bind="inicio" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Até</label>
-                <input type="date" class="form-control" @bind="fim" />
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button class="btn btn-primary w-100" @onclick="CarregarAsync">Atualizar</button>
+        <!-- Margem Bruta por Filial -->
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="sc-chart-card sc-table-card">
+                    <div class="sc-chart-header">
+                        <div>
+                            <div class="sc-chart-title">Margem Bruta por Filial</div>
+                            <div class="sc-chart-subtitle">Receita líquida de custo de produtos — fluxo de caixa operacional</div>
+                        </div>
+                        <div class="sc-legend-item">
+                            <span class="sc-legend-dot" style="background:#2e7d32"></span>
+                            <span>Margem Bruta</span>
+                        </div>
+                    </div>
+                    <div class="sc-chart-body">
+                        <MudChart T="double"
+                                  ChartType="ChartType.Bar"
+                                  ChartSeries="@margemSeries"
+                                  ChartLabels="@xLabels"
+                                  ChartOptions="@margemOptions"
+                                  Width="100%"
+                                  Height="190px" />
+                    </div>
+                </div>
             </div>
         </div>
+    }
 
-        <h5 class="mt-4">Desempenho por Filial</h5>
+    <!-- ── Tabela de Desempenho ───────────────────────────────── -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h5 class="mb-0">Desempenho por Filial</h5>
+        <span class="sc-count">@relatorio.Count filiai(s)</span>
+    </div>
+    <div class="sc-table-card">
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
+            <table class="table table-hover">
                 <thead class="table-dark">
                     <tr>
                         <th>Filial</th>
                         <th>Estado</th>
-                        <th>Faturado</th>
-                        <th>Despesas</th>
-                        <th>Margem Bruta</th>
-                        <th>Vendas</th>
-                        <th>Alertas</th>
+                        <th class="text-end">Faturado</th>
+                        <th class="text-end">Despesas</th>
+                        <th class="text-end">Margem Bruta</th>
+                        <th class="text-end">Vendas</th>
+                        <th class="text-center">Alertas</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var f in relatorio)
                     {
                         <tr>
-                            <td>@f.NomeFilial</td>
-                            <td>@f.Estado</td>
-                            <td>@f.TotalFaturado.ToString("C")</td>
-                            <td>@f.TotalDespesas.ToString("C")</td>
-                            <td class="@(f.MargemBruta >= 0 ? "text-success" : "text-danger") fw-bold">
+                            <td style="font-weight:500">@f.NomeFilial</td>
+                            <td><span class="sc-estado-badge">@f.Estado</span></td>
+                            <td class="text-end" style="font-variant-numeric:tabular-nums">@f.TotalFaturado.ToString("C")</td>
+                            <td class="text-end text-danger" style="font-variant-numeric:tabular-nums">@f.TotalDespesas.ToString("C")</td>
+                            <td class="text-end fw-bold" style="color:@(f.MargemBruta >= 0 ? "#2e7d32" : "#ff3b30");font-variant-numeric:tabular-nums">
                                 @f.MargemBruta.ToString("C")
                             </td>
-                            <td>@f.TotalVendas</td>
-                            <td>
+                            <td class="text-end" style="color:#6e6e73">@f.TotalVendas</td>
+                            <td class="text-center">
                                 @if (f.ProdutosComAlerta > 0)
                                 {
-                                    <span class="badge bg-warning text-dark">@f.ProdutosComAlerta</span>
+                                    <span class="badge bg-warning">@f.ProdutosComAlerta</span>
                                 }
                                 else
                                 {
@@ -109,23 +293,70 @@
                         </tr>
                     }
                 </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <td colspan="2" style="font-weight:700;font-size:0.75rem">Total da Rede</td>
+                        <td class="text-end" style="font-variant-numeric:tabular-nums;font-weight:600">@totalFaturado.ToString("C")</td>
+                        <td class="text-end text-danger" style="font-variant-numeric:tabular-nums;font-weight:600">@totalDespesas.ToString("C")</td>
+                        <td class="text-end fw-bold" style="color:@(margemBruta >= 0 ? "#2e7d32" : "#ff3b30");font-variant-numeric:tabular-nums">@margemBruta.ToString("C")</td>
+                        <td class="text-end" style="color:#6e6e73;font-weight:600">@totalVendas</td>
+                        <td class="text-center">
+                            @if (totalAlertas > 0)
+                            { <span class="badge bg-warning">@totalAlertas</span> }
+                            else
+                            { <span class="badge bg-success">OK</span> }
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
-    }
-</div>
+    </div>
+}
 
 @code {
     private List<RelatorioFilialDto> relatorio = new();
     private DateTime inicio = DateTime.Today.AddDays(-30);
-    private DateTime fim = DateTime.Today;
-    private bool carregando = true;
+    private DateTime fim    = DateTime.Today;
+    private bool    carregando = true;
     private string? erro;
 
+    // ── Totais ──────────────────────────────────────────────────
     private decimal totalFaturado => relatorio.Sum(r => r.TotalFaturado);
-    private decimal margemBruta => relatorio.Sum(r => r.MargemBruta);
-    private int totalVendas => relatorio.Sum(r => r.TotalVendas);
-    private int totalAlertas => relatorio.Sum(r => r.ProdutosComAlerta);
+    private decimal totalDespesas => relatorio.Sum(r => r.TotalDespesas);
+    private decimal margemBruta   => relatorio.Sum(r => r.MargemBruta);
+    private int     totalVendas   => relatorio.Sum(r => r.TotalVendas);
+    private int     totalAlertas  => relatorio.Sum(r => r.ProdutosComAlerta);
 
+    // ── Chart data ───────────────────────────────────────────────
+    private List<ChartSeries<double>> barSeries    = new();
+    private List<ChartSeries<double>> margemSeries = new();
+    private List<ChartSeries<double>> donutSeries  = new();
+    private string[] xLabels     = Array.Empty<string>();
+    private string[] donutLabels = Array.Empty<string>();
+
+    private readonly string[] _palette =
+        { "#0071e3", "#2e7d32", "#e65100", "#0288d1", "#9c27b0", "#795548", "#607d8b" };
+
+    // ── Chart Options ────────────────────────────────────────────
+    private BarChartOptions barOptions = new()
+    {
+        ChartPalette = new[] { "#0071e3", "#ff3b30" },
+        ShowLegend   = false,
+    };
+
+    private BarChartOptions margemOptions = new()
+    {
+        ChartPalette = new[] { "#2e7d32" },
+        ShowLegend   = false,
+    };
+
+    private DonutChartOptions donutOptions = new()
+    {
+        ChartPalette = new[] { "#0071e3", "#2e7d32", "#e65100", "#0288d1", "#9c27b0", "#795548", "#607d8b" },
+        ShowLegend   = false,
+    };
+
+    // ── Lifecycle ────────────────────────────────────────────────
     protected override async Task OnInitializedAsync() => await CarregarAsync();
 
     private async Task CarregarAsync()
@@ -135,6 +366,7 @@
         try
         {
             relatorio = (await RelatorioSvc.GerarRelatorioRedeAsync(inicio, fim.AddDays(1))).ToList();
+            BuildChartData();
         }
         catch (Exception ex)
         {
@@ -145,4 +377,34 @@
             carregando = false;
         }
     }
+
+    private void BuildChartData()
+    {
+        xLabels = relatorio.Select(r => Abreviar(r.NomeFilial)).ToArray();
+
+        barSeries = new List<ChartSeries<double>>
+        {
+            new ChartSeries<double> { Name = "Faturado",  Data = relatorio.Select(r => (double)r.TotalFaturado).ToArray() },
+            new ChartSeries<double> { Name = "Despesas",  Data = relatorio.Select(r => (double)r.TotalDespesas).ToArray() },
+        };
+
+        margemSeries = new List<ChartSeries<double>>
+        {
+            new ChartSeries<double> { Name = "Margem Bruta", Data = relatorio.Select(r => (double)Math.Max(0, r.MargemBruta)).ToArray() },
+        };
+
+        // Donut: 1 série com N pontos (1 por filial), ChartLabels = nomes das filiais
+        donutSeries = new List<ChartSeries<double>>
+        {
+            new ChartSeries<double>
+            {
+                Name = "Faturamento",
+                Data = relatorio.Select(r => (double)Math.Max(0, r.TotalFaturado)).ToArray()
+            }
+        };
+        donutLabels = relatorio.Select(r => Abreviar(r.NomeFilial)).ToArray();
+    }
+
+    private static string Abreviar(string nome) =>
+        nome.Length > 13 ? nome[..11] + "…" : nome;
 }

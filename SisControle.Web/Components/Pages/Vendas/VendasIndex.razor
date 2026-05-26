@@ -5,21 +5,19 @@
 
 <PageTitle>Vendas — SisControle</PageTitle>
 
-<div class="container-fluid py-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Vendas</h2>
-        <a href="/vendas/nova" class="btn btn-primary">+ Nova Venda</a>
+<SectionContent SectionName="page-title">Vendas</SectionContent>
+
+@if (mensagem != null)
+{
+    <div class="alert alert-info alert-dismissible mb-3">
+        @mensagem
+        <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
     </div>
+}
 
-    @if (mensagem != null)
-    {
-        <div class="alert alert-info alert-dismissible">
-            @mensagem
-            <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
-        </div>
-    }
-
-    <div class="row g-3 mb-3">
+<!-- Filters -->
+<div class="sc-table-card mb-3 p-3" style="border-radius:0.75rem">
+    <div class="row g-2 align-items-end">
         <div class="col-md-3">
             <label class="form-label">Filial</label>
             <select class="form-select" @bind="filialId">
@@ -35,40 +33,69 @@
             <label class="form-label">Até</label>
             <input type="date" class="form-control" @bind="fim" />
         </div>
-        <div class="col-md-3 d-flex align-items-end">
+        <div class="col-md-3">
             <button class="btn btn-primary w-100" @onclick="CarregarAsync">Filtrar</button>
         </div>
     </div>
+</div>
 
-    <div class="mb-2">
-        <strong>Total faturado no período: </strong>
-        <span class="text-success fw-bold fs-5">@vendas.Sum(v => v.ValorTotal).ToString("C")</span>
+<!-- Summary -->
+@if (vendas.Any())
+{
+    <div class="mb-3 d-flex align-items-center gap-2">
+        <span style="font-size:0.75rem;color:#aaaaaa">Total faturado no período:</span>
+        <span style="font-size:1.1rem;font-weight:600;color:#2e7d32">@vendas.Sum(v => v.ValorTotal).ToString("C")</span>
     </div>
+}
 
+<div class="sc-table-card">
+    <div class="sc-toolbar">
+        <span class="sc-count">@vendas.Count vendas</span>
+        <a href="/vendas/nova" class="btn btn-primary btn-sm">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova Venda
+        </a>
+    </div>
     <div class="table-responsive">
-        <table class="table table-striped table-hover">
+        <table class="table table-hover">
             <thead class="table-dark">
                 <tr>
-                    <th>#</th><th>Data/Hora</th><th>Filial</th><th>Cliente</th>
-                    <th>Itens</th><th>Total</th><th>Pagamento</th>
+                    <th class="text-end" style="width:2.5rem">#</th>
+                    <th>Data/Hora</th>
+                    <th>Filial</th>
+                    <th>Cliente</th>
+                    <th class="text-end">Itens</th>
+                    <th class="text-end">Total</th>
+                    <th>Pagamento</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var v in vendas)
+                @if (!vendas.Any())
                 {
                     <tr>
-                        <td>@v.Id</td>
-                        <td>@v.DataHora.ToString("dd/MM/yyyy HH:mm")</td>
-                        <td>@v.Filial?.Nome</td>
-                        <td>@(v.Cliente?.Nome ?? "Consumidor final")</td>
-                        <td>@v.Itens.Count</td>
-                        <td class="fw-bold text-success">@v.ValorTotal.ToString("C")</td>
-                        <td>@v.FormaPagamento</td>
+                        <td colspan="7" class="text-center py-5" style="color:#aaaaaa;font-size:0.8rem">
+                            Nenhuma venda encontrada no período
+                        </td>
+                    </tr>
+                }
+                @{ int i = 0; }
+                @foreach (var v in vendas)
+                {
+                    i++;
+                    <tr>
+                        <td class="text-end" style="color:#aaaaaa;font-size:0.7rem">@i</td>
+                        <td style="font-size:0.72rem;color:#6e6e73">@v.DataHora.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td style="color:#6e6e73">@v.Filial?.Nome</td>
+                        <td style="color:#6e6e73">@(v.Cliente?.Nome ?? "Consumidor final")</td>
+                        <td class="text-end" style="color:#6e6e73">@v.Itens.Count</td>
+                        <td class="text-end fw-bold text-success" style="font-variant-numeric:tabular-nums">@v.ValorTotal.ToString("C")</td>
+                        <td><span class="badge bg-secondary">@v.FormaPagamento</span></td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
+    <div class="sc-table-foot">@vendas.Count vendas</div>
 </div>
 
 @code {

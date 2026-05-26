@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Services;
 using SisControle.Application.Services;
 using SisControle.Domain.Interfaces;
 using SisControle.Infrastructure.Data;
@@ -35,6 +36,8 @@ builder.Services.AddScoped<VendaService>();
 builder.Services.AddScoped<DespesaService>();
 builder.Services.AddScoped<OrdemCompraService>();
 builder.Services.AddScoped<RelatorioService>();
+
+builder.Services.AddMudServices();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

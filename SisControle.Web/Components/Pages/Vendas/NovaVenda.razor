@@ -9,15 +9,20 @@
 
 <PageTitle>Nova Venda — SisControle</PageTitle>
 
-<div class="container-fluid py-3">
-    <h2 class="mb-4">Registrar Venda</h2>
+<SectionContent SectionName="page-title">Registrar Venda</SectionContent>
 
-    @if (mensagem != null)
-    {
-        <div class="alert @(erro ? "alert-danger" : "alert-success")">@mensagem</div>
-    }
+@if (mensagem != null)
+{
+    <div class="alert @(erro ? "alert-danger" : "alert-success") alert-dismissible mb-3">
+        @mensagem
+        <button type="button" class="btn-close" @onclick="() => mensagem = null"></button>
+    </div>
+}
 
-    <div class="row g-3 mb-4">
+<!-- Sale details -->
+<div class="sc-table-card mb-3 p-3" style="border-radius:0.75rem">
+    <div style="font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#aaaaaa;margin-bottom:0.75rem">Dados da Venda</div>
+    <div class="row g-2">
         <div class="col-md-4">
             <label class="form-label">Filial *</label>
             <select class="form-select" @bind="filialId" @bind:after="CarregarFuncionariosAsync">
@@ -33,7 +38,7 @@
             </select>
         </div>
         <div class="col-md-4">
-            <label class="form-label">Cliente (opcional)</label>
+            <label class="form-label">Cliente</label>
             <select class="form-select" @bind="clienteId">
                 <option value="0">Consumidor final</option>
                 @foreach (var c in clientes) { <option value="@c.Id">@c.Nome</option> }
@@ -50,54 +55,87 @@
             </select>
         </div>
     </div>
+</div>
 
-    <h5>Itens da Venda</h5>
-    <div class="row g-2 mb-3">
-        <div class="col-md-5">
+<!-- Add items -->
+<div class="sc-table-card mb-3 p-3" style="border-radius:0.75rem">
+    <div style="font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#aaaaaa;margin-bottom:0.75rem">Adicionar Itens</div>
+    <div class="row g-2 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label">Produto *</label>
             <select class="form-select" @bind="addProdutoId">
-                <option value="0">Selecione produto...</option>
+                <option value="0">Selecione...</option>
                 @foreach (var p in produtos) { <option value="@p.Id">@p.Nome (@p.PrecoVenda.ToString("C"))</option> }
             </select>
         </div>
-        <div class="col-md-2">
-            <input type="number" min="1" class="form-control" @bind="addQuantidade" placeholder="Qtd" />
+        <div class="col-md-3">
+            <label class="form-label">Quantidade *</label>
+            <input type="number" min="1" class="form-control" @bind="addQuantidade" />
         </div>
-        <div class="col-md-2">
-            <button class="btn btn-success w-100" @onclick="AdicionarItem">Adicionar</button>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="AdicionarItem">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar
+            </button>
         </div>
     </div>
+</div>
 
-    @if (itens.Any())
-    {
-        <table class="table table-bordered table-sm mb-4">
-            <thead class="table-secondary">
-                <tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th></th></tr>
-            </thead>
-            <tbody>
-                @foreach (var item in itens)
-                {
+<!-- Cart -->
+@if (itens.Any())
+{
+    <div class="mb-2">
+        <h5>Itens da Venda</h5>
+    </div>
+    <div class="sc-table-card mb-3">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
                     <tr>
-                        <td>@item.NomeProduto</td>
-                        <td>@item.Quantidade</td>
-                        <td>@item.PrecoUnitario.ToString("C")</td>
-                        <td>@((item.Quantidade * item.PrecoUnitario).ToString("C"))</td>
-                        <td><button class="btn btn-sm btn-outline-danger" @onclick="() => itens.Remove(item)">X</button></td>
+                        <th>Produto</th>
+                        <th class="text-end">Qtd</th>
+                        <th class="text-end">Preço Unit.</th>
+                        <th class="text-end">Subtotal</th>
+                        <th style="width:2rem"></th>
                     </tr>
-                }
-            </tbody>
-            <tfoot>
-                <tr class="fw-bold">
-                    <td colspan="3" class="text-end">Total:</td>
-                    <td colspan="2" class="text-success fs-5">@itens.Sum(i => i.Quantidade * i.PrecoUnitario).ToString("C")</td>
-                </tr>
-            </tfoot>
-        </table>
-    }
-
-    <div class="d-flex gap-2">
-        <button class="btn btn-primary" @onclick="ConfirmarVendaAsync" disabled="@(!itens.Any())">Confirmar Venda</button>
-        <a href="/vendas" class="btn btn-secondary">Cancelar</a>
+                </thead>
+                <tbody>
+                    @foreach (var item in itens)
+                    {
+                        <tr>
+                            <td style="font-weight:500">@item.NomeProduto</td>
+                            <td class="text-end" style="color:#6e6e73">@item.Quantidade</td>
+                            <td class="text-end" style="color:#6e6e73;font-variant-numeric:tabular-nums">@item.PrecoUnitario.ToString("C")</td>
+                            <td class="text-end fw-bold" style="font-variant-numeric:tabular-nums">@((item.Quantidade * item.PrecoUnitario).ToString("C"))</td>
+                            <td>
+                                <button class="sc-btn-icon delete" title="Remover" @onclick="() => itens.Remove(item)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr style="background:#fafafa;border-top:1px solid rgba(0,0,0,0.08)">
+                        <td colspan="3" class="text-end" style="font-size:0.75rem;color:#6e6e73;font-weight:600">TOTAL:</td>
+                        <td class="text-end fw-bold text-success" style="font-size:1.05rem;font-variant-numeric:tabular-nums">
+                            @itens.Sum(i => i.Quantidade * i.PrecoUnitario).ToString("C")
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
+}
+
+<!-- Actions -->
+<div class="d-flex gap-2">
+    <button class="btn btn-primary" @onclick="ConfirmarVendaAsync" disabled="@(!itens.Any())">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirmar Venda
+    </button>
+    <a href="/vendas" class="btn btn-secondary">Cancelar</a>
 </div>
 
 @code {
